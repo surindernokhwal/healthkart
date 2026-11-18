@@ -83,7 +83,8 @@ export default async function ConsultationPage({ params }) {
         </div>
 
         <div className="card h-fit">
-          <h2 className="mb-4 font-semibold">Previous visits</h2>
+          <h2 className="font-semibold">Visit history</h2>
+          <p className="mb-4 text-xs text-slate-500">All other appointments of this patient, newest first</p>
           <VisitHistory appointments={patient.appointments} excludeId={appt.id} />
         </div>
       </div>

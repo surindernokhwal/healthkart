@@ -36,6 +36,18 @@ The other seeded doctors (priya.rawat, rohit.negi, meena.joshi @clinic.com) also
 | `npm run db:seed`    | Insert the demo data again (safe to repeat)          |
 | `npm run db:studio`  | Prisma Studio: browse and edit tables in the browser |
 | `npm run db:backup`  | Back up the database into `backups/` (SQL with `pg_dump` if installed, otherwise JSON) |
+| `npm run db:demo`    | Add demo history: past visits, prescriptions, paid/pending bills, cancellations (safe to repeat) |
+| `npm test`           | Run the automated unit tests (`tests/unit.test.mjs`)  |
+
+### Windows .exe launcher
+
+The university asks for a `.exe` of the running project. Because this is a web application, `launcher/` builds a small Windows program that opens the hosted app in its own window (Edge or Chrome app mode, otherwise the default browser):
+
+```powershell
+powershell -ExecutionPolicy Bypass -File launcher\build-exe.ps1 -Url https://your-app.vercel.app
+```
+
+The result is `launcher\dist\ClinicAppointmentSystem.exe` (about 11 KB). It uses the C# compiler included in Windows, so nothing has to be installed.
 
 ### Email notifications (optional)
 

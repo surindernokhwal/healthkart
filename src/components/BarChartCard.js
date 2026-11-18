@@ -4,7 +4,8 @@ import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAx
 
 const COLORS = ["#0f766e", "#2563eb", "#94a3b8", "#d97706", "#7c3aed"];
 
-const pretty = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+// Series names shown in the legend and tooltip ("upi" is an abbreviation)
+const pretty = (s) => (s.toLowerCase() === "upi" ? "UPI" : s.charAt(0).toUpperCase() + s.slice(1));
 
 // Generic bar chart (Recharts) used on the admin dashboard and reports.
 export default function BarChartCard({ data, xKey, series, stacked = false, height = 280, money = false }) {

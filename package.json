@@ -9,12 +9,14 @@
     "start": "next start",
     "fast": "next build && next start",
     "lint": "eslint",
+    "test": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./tests/register.mjs --test tests/*.test.mjs",
     "postinstall": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
     "db:seed": "prisma db seed",
     "db:studio": "prisma studio",
-    "db:backup": "node --env-file=.env scripts/backup.js"
+    "db:demo": "node prisma/seed-demo.js",
+    "db:backup":"node --env-file=.env scripts/backup.js"
   },
   "dependencies": {
     "@prisma/client": "^6.19.3",

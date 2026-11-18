@@ -15,7 +15,11 @@
 
 # next.js
 /.next/
+/.next-*/
 /out/
+
+# database backups contain patient data
+/backups/
 
 # production
 /build
@@ -39,3 +43,5 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+!.env.example

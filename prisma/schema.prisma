@@ -1,0 +1,212 @@
+// Clinic Appointment and Patient Management System
+// Database schema (converted from the ER diagram / data dictionary, Table 8)
+
+generator client {
+  provider = "prisma-client-js"
+  // Load related tables (include) with SQL JOINs in a single query instead of
+  // one query per relation. The database is a network round trip away, so
+  // this makes every page noticeably faster.
+  previewFeatures = ["relationJoins"]
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL") // pooled connection (app queries)
+  directUrl = env("DIRECT_URL") // direct connection (migrations)
+}
+
+enum Role {
+  ADMIN
+  DOCTOR
+  PATIENT
+}
+
+enum AppointmentStatus {
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+}
+
+enum PayStatus {
+  PENDING
+  PAID
+}
+
+enum PayMode {
+  CASH
+  UPI
+}
+
+model User {
+  id           Int       @id @default(autoincrement())
+  name         String    @db.VarChar(100)
+  email        String    @unique @db.VarChar(120)
+  passwordHash String    @map("password_hash") @db.VarChar(255)
+  role         Role
+  isActive     Boolean   @default(true) @map("is_active")
+  failedLogins Int       @default(0) @map("failed_logins")
+  lockedUntil  DateTime? @map("locked_until")
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  patient      Patient?
+  doctor       Doctor?
+  activityLogs ActivityLog[]
+
+  @@map("users")
+}
+
+model Patient {
+  id      Int      @id @default(autoincrement())
+  userId  Int      @unique @map("user_id")
+  gender  String   @db.VarChar(10)
+  dob     DateTime @db.Date
+  phone   String   @db.VarChar(15)
+  address String?  @db.Text
+
+  user         User          @relation(fields: [userId], references: [id])
+  appointments Appointment[]
+
+  @@map("patients")
+}
+
+model Department {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique @db.VarChar(80)
+  description String?  @db.Text
+  isActive    Boolean  @default(true) @map("is_active")
+  doctors     Doctor[]
+
+  @@map("departments")
+}
+
+model Doctor {
+  id            Int     @id @default(autoincrement())
+  userId        Int     @unique @map("user_id")
+  departmentId  Int     @map("department_id")
+  qualification String  @db.VarChar(100)
+  phone         String  @db.VarChar(15)
+  fee           Decimal @db.Decimal(8, 2)
+
+  user         User             @relation(fields: [userId], references: [id])
+  department   Department       @relation(fields: [departmentId], references: [id])
+  schedules    DoctorSchedule[]
+  leaves       DoctorLeave[]
+  appointments Appointment[]
+
+  @@map("doctors")
+}
+
+// Weekly availability. Times are stored as "HH:MM" (24-hour) strings.
+model DoctorSchedule {
+  id          Int    @id @default(autoincrement())
+  doctorId    Int    @map("doctor_id")
+  weekday     Int // 0 = Sunday ... 6 = Saturday
+  startTime   String @map("start_time") @db.VarChar(5)
+  endTime     String @map("end_time") @db.VarChar(5)
+  slotMinutes Int    @map("slot_minutes")
+
+  doctor Doctor @relation(fields: [doctorId], references: [id])
+
+  @@unique([doctorId, weekday])
+  @@map("doctor_schedules")
+}
+
+model DoctorLeave {
+  id        Int      @id @default(autoincrement())
+  doctorId  Int      @map("doctor_id")
+  leaveDate DateTime @map("leave_date") @db.Date
+  reason    String?  @db.VarChar(150)
+
+  doctor Doctor @relation(fields: [doctorId], references: [id])
+
+  @@unique([doctorId, leaveDate])
+  @@map("doctor_leaves")
+}
+
+model Appointment {
+  id          Int               @id @default(autoincrement())
+  bookingCode String            @unique @map("booking_code") @db.VarChar(12)
+  patientId   Int               @map("patient_id")
+  doctorId    Int               @map("doctor_id")
+  date        DateTime          @db.Date
+  timeSlot    String            @map("time_slot") @db.VarChar(5)
+  status      AppointmentStatus @default(CONFIRMED)
+  reason      String?           @db.Text
+  createdAt   DateTime          @default(now()) @map("created_at")
+
+  // Unique key on (doctor_id, date, time_slot) for ACTIVE appointments only.
+  // Holds "doctorId|date|time" while the appointment is CONFIRMED/COMPLETED and
+  // is set to NULL on cancellation, so a cancelled slot can be booked again.
+  // PostgreSQL allows many NULLs in a unique column.
+  activeSlot String? @unique @map("active_slot") @db.VarChar(40)
+
+  patient      Patient       @relation(fields: [patientId], references: [id])
+  doctor       Doctor        @relation(fields: [doctorId], references: [id])
+  prescription Prescription?
+  bill         Bill?
+
+  @@index([doctorId, date])
+  @@map("appointments")
+}
+
+model Prescription {
+  id            Int      @id @default(autoincrement())
+  appointmentId Int      @unique @map("appointment_id")
+  diagnosis     String   @db.Text
+  advice        String?  @db.Text
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  appointment Appointment        @relation(fields: [appointmentId], references: [id])
+  items       PrescriptionItem[]
+
+  @@map("prescriptions")
+}
+
+model Medicine {
+  id    Int                @id @default(autoincrement())
+  name  String             @unique @db.VarChar(100)
+  type  String             @db.VarChar(30) // Tablet / Syrup / Injection / ...
+  items PrescriptionItem[]
+
+  @@map("medicines")
+}
+
+model PrescriptionItem {
+  id             Int    @id @default(autoincrement())
+  prescriptionId Int    @map("prescription_id")
+  medicineId     Int    @map("medicine_id")
+  dosage         String @db.VarChar(50)
+  durationDays   Int    @map("duration_days")
+
+  prescription Prescription @relation(fields: [prescriptionId], references: [id])
+  medicine     Medicine     @relation(fields: [medicineId], references: [id])
+
+  @@map("prescription_items")
+}
+
+model Bill {
+  id            Int       @id @default(autoincrement())
+  appointmentId Int       @unique @map("appointment_id")
+  amount        Decimal   @db.Decimal(8, 2)
+  status        PayStatus @default(PENDING)
+  mode          PayMode?
+  billDate      DateTime  @default(now()) @map("bill_date")
+  paidAt        DateTime? @map("paid_at")
+
+  appointment Appointment @relation(fields: [appointmentId], references: [id])
+
+  @@map("bills")
+}
+
+// Audit trail of important actions (security level 7 – monitoring)
+model ActivityLog {
+  id        Int      @id @default(autoincrement())
+  userId    Int?     @map("user_id")
+  action    String   @db.VarChar(50)
+  details   String?  @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User? @relation(fields: [userId], references: [id])
+
+  @@map("activity_logs")
+}
